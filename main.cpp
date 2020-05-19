@@ -9,12 +9,12 @@ private:
     int vertexNumber;
     std::vector<std::vector<int>> vertices;
 public:
-    Graph(int n = 0) : vertexNumber(n) {vertices.resize(n);}
+    explicit Graph(int n = 0) : vertexNumber(n) {vertices.resize(n);}
     bool IsValidVertex(int vertex) const;
-    void AddVertex(int vertex);
+    void AddVertex();
     void AddEdge(int from, int to);
-    bool HasEdge(int from, int to);
-    const std::vector<int> GetNextVertices(int from) const;
+    bool HasEdge(int from, int to) const;
+    const std::vector<int>& GetNextVertices(int from) const;
     int VertexCount() const;
 };
 
@@ -22,7 +22,7 @@ bool Graph::IsValidVertex(int vertex) const {
     return vertex >= 0 && vertex < vertexNumber;
 }
 
-void Graph::AddVertex(int vertex) {
+void Graph::AddVertex() {
     vertexNumber++;
     vertices.push_back({});
 }
@@ -34,7 +34,7 @@ void Graph::AddEdge(int from, int to) {
     vertices[from].push_back(to);
 }
 
-bool Graph::HasEdge(int from, int to) {
+bool Graph::HasEdge(int from, int to) const {
     if( !IsValidVertex(from) || !IsValidVertex(to) ) {
         return false;
     }
@@ -46,7 +46,7 @@ bool Graph::HasEdge(int from, int to) {
     return false;
 }
 
-const std::vector<int> Graph::GetNextVertices(int from) const {
+const std::vector<int>& Graph::GetNextVertices(int from) const {
     return vertices[from];
 }
 
@@ -54,46 +54,52 @@ int Graph::VertexCount() const {
     return vertexNumber;
 }
 
-void DFS(const Graph& graph, int from, bool& cycle, std::vector<int>& answer, std::vector<int>& color) {
-    std::stack<int> st;
-    st.push(from);
-    while( !st.empty() ) {
-        int vertex = st.top();
-        color[vertex] = 1;
-        const std::vector<int> vert = graph.GetNextVertices(vertex);
-        bool flag = 0;
-        for( int i = 0; i < vert.size() && flag == 0; ++i ) {
-            if( !color[vert[i]] ) {
-                st.push(vert[i]);
-                flag = 1;
+enum Colors
+{
+    white,
+    grey,
+    black,
+};
+
+void DFS(const Graph& graph, int from, bool& hasCycle, std::vector<int>& answer, std::vector<Colors>& color) {
+    std::stack<int> vertices;
+    vertices.push(from);
+    while( !vertices.empty() ) {
+        int vertex = vertices.top();
+        color[vertex] = grey;
+        auto adjacentList = graph.GetNextVertices(vertex);
+        bool wayExist = false;
+        for( int i = 0; i < adjacentList.size() && !wayExist; ++i ) {
+            if( color[adjacentList[i]] == white ) {
+                vertices.push(adjacentList[i]);
+                wayExist = true;
             }
-            if( color[vert[i]] == 1 ) {
-                cycle = 1;
+            if( color[adjacentList[i]] == grey ) {
+                hasCycle = true;
                 return;
             }
         }
-        if( flag == 0 ) {
-            color[vertex] = 2;
+        if( !wayExist ) {
+            color[vertex] = black;
             answer.push_back(vertex);
-            st.pop();
+            vertices.pop();
         }
     }
 }
 
-void TopologicalSort(const Graph& graph, std::vector<int>& answer, std::vector<int>& color, bool cycle) {
+std::vector<int> TopologicalSort(const Graph& graph, bool hasCycle) {
     int n = graph.VertexCount();
+    std::vector<Colors> color(n, white);
+    std::vector<int> answer;
     for( int i = 0; i < n; ++i ) {
-        color[i] = 0;
-    }
-    answer.clear();
-    for( int i = 0; i < n; ++i ) {
-        if( !color[i] ) {
-            DFS(graph, i, cycle, answer, color);
+        if( color[i] == white ) {
+            DFS(graph, i, hasCycle, answer, color);
         }
     }
     for( int i = 0; 2 * i < n; ++i ) {
         std::swap(answer[i], answer[n - 1 - i]);
     }
+    return answer;
 }
 
 int main() {
@@ -112,23 +118,22 @@ int main() {
             graph.AddEdge(from, to);
         }
     }
-    bool cycle = 0;
-    std::vector<int> color(n, 0);
+    bool hasCycle = false;
+    std::vector<Colors> color(n, white);
     std::vector<int> answer;
     for( int i = 0; i < n; ++i ) {
-        DFS(graph, i, cycle, answer, color);
-        if( cycle ) {
+        DFS(graph, i, hasCycle, answer, color);
+        if( hasCycle ) {
             std::cout << "NO";
             break;
         }
     }
-    if( !cycle ) {
-        TopologicalSort(graph, answer, color, cycle);
+    if( !hasCycle ) {
+        auto vertSequence = TopologicalSort(graph, hasCycle);
         std::cout << "YES" << '\n';
         for( int i = 0; i < n; ++i ) {
-            std::cout << answer[i] << ' ';
+            std::cout << vertSequence[i] << ' ';
         }
     }
     return 0;
 }
-
