@@ -9,12 +9,12 @@ private:
     int vertexNumber;
     std::vector<std::vector<int>> vertices;
 public:
-    Graph(int n = 0) : vertexNumber(n) {vertices.resize(n);}
+    explicit Graph(int n = 0) : vertexNumber(n) {vertices.resize(n);}
     bool IsValidVertex(int vertex) const;
-    void AddVertex(int vertex);
+    void AddVertex();
     void AddEdge(int from, int to);
-    bool HasEdge(int from, int to);
-    const std::vector<int> GetNextVertices(int from) const;
+    bool HasEdge(int from, int to) const;
+    const std::vector<int>& GetNextVertices(int from) const;
     int VertexCount() const;
 };
 
@@ -22,7 +22,7 @@ bool Graph::IsValidVertex(int vertex) const {
     return vertex >= 0 && vertex < vertexNumber;
 }
 
-void Graph::AddVertex(int vertex) {
+void Graph::AddVertex() {
     vertexNumber++;
     vertices.push_back({});
 }
@@ -35,7 +35,7 @@ void Graph::AddEdge(int from, int to) {
     vertices[to].push_back(from);
 }
 
-bool Graph::HasEdge(int from, int to) {
+bool Graph::HasEdge(int from, int to) const {
     if( !IsValidVertex(from) || !IsValidVertex(to) ) {
         return false;
     }
@@ -47,7 +47,7 @@ bool Graph::HasEdge(int from, int to) {
     return false;
 }
 
-const std::vector<int> Graph::GetNextVertices(int from) const {
+const std::vector<int>& Graph::GetNextVertices(int from) const {
     return vertices[from];
 }
 
@@ -55,22 +55,22 @@ int Graph::VertexCount() const {
     return vertexNumber;
 }
 
-std::vector<int> BFS(int vertex, Graph graph) {
-    std::queue<int> q;
-    q.push(vertex);
+std::vector<int> BFS(int vertex, const Graph& graph) {
+    std::queue<int> vertices;
+    vertices.push(vertex);
     int n = graph.VertexCount();
     std::vector<bool> used(n, false);
     std::vector<int> ways(n, 0);
     used[vertex] = true;
-    while( !q.empty() ) {
-        int from = q.front();
-        q.pop();
-        const std::vector<int> adjacent = graph.GetNextVertices(from);
+    while( !vertices.empty() ) {
+        int from = vertices.front();
+        vertices.pop();
+        auto adjacent = graph.GetNextVertices(from);
         for( int i = 0; i < adjacent.size(); ++i ) {
             int to = adjacent[i];
             if( !used[to] ) {
                 used[to] = true;
-                q.push(to);
+                vertices.push(to);
                 ways[to] = ways[from] + 1;
             }
         }
