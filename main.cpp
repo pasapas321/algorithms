@@ -2,81 +2,84 @@
 #include <vector>
 #include <cmath>
 #include <iomanip>
-#include <algorithm>
 
 
 
-class R2Q {
+class SegmentTree {
 private:
-    std::vector<int> sequence;
-    size_t length;
-    std::vector<size_t> binaryLogarithm;
-    std::vector<std::vector<std::pair<int, int>>> sparseTable;
-    std::pair<int, int> GetMinPair(std::pair<int, int> a, std::pair<int, int> b);
+    std::vector<std::pair<int, int>> tree;
+    const size_t leafsAmount;
 public:
-    R2Q(const std::vector<int>& sequence);
-    int SecondStatistics(size_t a, size_t b);
+    SegmentTree(const std::vector<int>& sequence);
+    int GetSegmentMax(size_t root, size_t left, size_t right, size_t a, size_t b);
+    void IncreaseSegment(size_t root, size_t left, size_t right, size_t a, size_t b, int value);
+    const size_t GetLeafsAmount();
 };
 
-std::pair<int, int> R2Q::GetMinPair(std::pair<int, int> a, std::pair<int, int> b) {
-    std::pair<int, int> minPair;
-    std::vector<int> order{a.first, a.second, b.first, b.second};
-    std::sort(order.begin(), order.end());
-    minPair.first = order[0];
-    for( size_t i = 0; i < 3; ++i ) {
-        if (order[i + 1] != order[0]) {
-            minPair.second = order[i + 1];
-            break;
-        }
+SegmentTree::SegmentTree(const std::vector<int>& sequence) : leafsAmount(1 << static_cast<size_t>(ceil(log2(sequence.size())))) {
+    tree.assign(2 * leafsAmount - 1, {0, 0});
+    for( size_t i = 0; i < sequence.size(); ++i ) {
+        tree[tree.size() / 2 + i].first = sequence[i];
     }
-    return minPair;
-}
-
-R2Q::R2Q(const std::vector<int>& sequence) : sequence(sequence), length(sequence.size()) {
-    size_t n = ceil(log2(length));
-    std::vector<std::pair<int, int>> tableString(length, {0, 0});
-    sparseTable.assign(n, tableString);
-    
-    for( size_t i = 0; i < length + 1; ++i ) {
-        binaryLogarithm.push_back(static_cast<size_t>(ceil(log2(i))));
-    }
-    
-    for( size_t i = 0; i < length; ++i ) {
-        sparseTable[0][i].first = sequence[i];
-        sparseTable[0][i].second = sequence[i];
-    }
-    
-    for( size_t i = 0; i < sparseTable.size() - 1; i++ ) {
-        for( size_t j = 0; j < length - (1 << (i + 1)) + 1; ++j ) {
-            std::pair<int, int> minPair = GetMinPair(sparseTable[i][j], sparseTable[i][j + (1 << i)]);
-            sparseTable[i + 1][j].first = minPair.first;
-            sparseTable[i + 1][j].second = minPair.second;
-        }
+    for( int i = static_cast<int>(tree.size()) / 2 - 1; i >= 0; --i ) {
+        tree[i].first = std::max(tree[2 * i + 1].first, tree[2 * i + 2].first);
     }
 }
 
-int R2Q::SecondStatistics(size_t a, size_t b) {
-    size_t index = binaryLogarithm[b - a + 1] - 1;
-    auto answer = GetMinPair(sparseTable[index][a], sparseTable[index][b - (1 << index) + 1]).second;
-    return answer;
+int SegmentTree::GetSegmentMax(size_t root, size_t left, size_t right, size_t a, size_t b) {
+    if( a > b || left > right ) {
+        return 0;
+    }
+    if( a == left && b == right ) {
+        return tree[root].first + tree[root].second;
+    }
+    size_t median = (left + right) / 2;
+    int leftMax = GetSegmentMax(2 * root + 1, left, median, a, std::min(b, median));
+    int rightMax = GetSegmentMax(2 * root + 2, median + 1, right, std::max(a, median + 1), b);
+    return std::max(rightMax, leftMax) + tree[root].second;
+}
+
+void SegmentTree::IncreaseSegment(size_t root, size_t left, size_t right, size_t a, size_t b, int value) {
+    if( a > b || left > right ) {
+        return;
+    }
+    if( a == left && b == right ) {
+        tree[root].second += value;
+        return;
+    }
+    size_t median = (left + right) / 2;
+    IncreaseSegment(2 * root + 1, left, median, a, std::min(b, median), value);
+    IncreaseSegment(2 * root + 2, median + 1, right, std::max(a, median + 1), b, value);
+    tree[root].first = std::max(tree[2 * root + 1].first + tree[2 * root + 1].second, tree[2 * root + 2].first + tree[2 * root + 2].second);
+}
+
+const size_t SegmentTree::GetLeafsAmount() {
+    return leafsAmount;
 }
 
 int main() {
     size_t N;
-    size_t M;
-    std::cin >> N >> M;
-    std::vector<int> sequence(N);
-    for( size_t i = 0; i < N; ++i ) {
-        int element;
-        std::cin >> element;
-        sequence[i] = element;
+    std::cin >> N;
+    std::vector<int> tickets(N - 1);
+    for( size_t i = 0; i < N - 1; ++i ) {
+        std::cin >> tickets[i];
     }
-    R2Q r2q(sequence);
-    for( size_t i = 0; i < M; ++i ) {
-        size_t left;
-        size_t right;
-        std::cin >> left >> right;
-        std::cout << r2q.SecondStatistics(left - 1, right - 1) << '\n';
+    SegmentTree segmentTree(tickets);
+    int capacity;
+    std::cin >> capacity;
+    size_t inquiry;
+    std::cin >> inquiry;
+    for( size_t i = 0; i < inquiry; ++i ) {
+        size_t start;
+        size_t finish;
+        int amount;
+        std::cin >> start >> finish >> amount;
+        size_t leafs = segmentTree.GetLeafsAmount();
+        if( segmentTree.GetSegmentMax(0, 0, leafs - 1, start, finish - 1) + amount > capacity) {
+            std::cout << i << " ";
+        } else {
+            segmentTree.IncreaseSegment(0, 0, leafs - 1, start, finish - 1, amount);
+        }
     }
     return 0;
 }
